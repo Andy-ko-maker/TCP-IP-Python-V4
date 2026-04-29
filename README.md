@@ -106,6 +106,38 @@ pip install tkinter  # 通常Python自带
 - GetError_README.md的英文版本
 - 便于国际用户理解和使用
 
+## 程序代码解读
+
+### 主入口：main.py -> DobotDemo.py
+
+- **main.py** 作为入口，只做两件事：创建 `DobotDemo(ip)` 实例并调用 `start()`。
+- **DobotDemo.start()** 的流程：
+  1. 通过 `DobotApiDashboard(29999)` 建立指令通道，并用 `DobotApiFeedBack(30004)` 建立状态反馈通道。
+  2. 调用 `EnableRobot()` 使能机器人，失败会提示端口占用或模式问题。
+  3. 启动 `GetFeed` 线程持续解析反馈包并更新 `feedData`。
+  4. 示例循环中周期性打印 DI/DO 与 `robotMode`，用于观察状态。
+- **GetFeed()** 校验 `TestValue == 0x123456789abcdef` 后，更新 `robotMode`、`DigitalInputs`、`DigitalOutputs` 与 `CurrentCommandId`。
+- **RunPoint()** 发送 `MovJ` 指令后，通过 `robotMode` 与 `CurrentCommandId` 判断运动结束。
+- **parseResultId()** 负责解析返回字符串中的数字并检查是否进入 TCP 控制模式。
+
+### 通讯与指令封装：dobot_api.py
+
+- **MyType** 定义反馈包结构，`np.frombuffer` 用于解析 30004 端口的二进制数据。
+- **DobotApi** 负责 socket 连接/重连、线程安全的 `sendRecvMsg` 同步收发。
+- **DobotApiDashboard** 封装控制指令（EnableRobot、MovJ/MovL、ClearError、GetError 等）。
+- **DobotApiFeedBack** 提供 `feedBackData()` 读取与解析状态数据的能力。
+
+### GUI 操作流程：main_UI.py / ui.py
+
+- **main_UI.py** 直接创建 `RobotUI` 并进入 Tkinter 主循环。
+- **RobotUI.connect_port()** 建立/断开连接，并启动 `feed_back` 线程获取反馈。
+- **feed_back()** 解析反馈数据后刷新界面，`RobotMode == 9` 时显示报警信息。
+- UI 按钮动作（Enable、MovJ、MovL、DO 等）通过 `DobotApiDashboard` 调用对应指令。
+
+### GetError 示例：get_error_example.py
+
+- **RobotErrorMonitor** 展示 GetError 的多语言获取、打印与保存 JSON 的典型流程。
+
 ## 项目目录结构
 
 TCP-IP-Python-V4/
